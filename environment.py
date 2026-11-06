@@ -26,10 +26,15 @@ class Environment:
 
         # self.last_cactus = pygame.time.get_ticks() - CACTUS_FREQUENCY
         self.elapsed_game_time = 0
-        self.spawn_time_interval = CACTUS_FREQUENCY_SECS;
-        self.spawn_time_interval_decrease = 0.03;
-        self.next_spawn_time = self.spawn_time_interval;
-        
+        self.spawn_time_interval = CACTUS_FREQUENCY_SECS
+        self.spawn_time_interval_decrease = 0.03
+        self.next_spawn_time = 0
+
+    def get_state(self):
+        grounded_num = int(self.dino.grounded)
+        distance = 0 if self.dino.distance_to_cactus(self.cactus_group) is None else self.dino.distance_to_cactus(self.cactus_group)
+        cactus_exist = int(len(self.cactus_group) > 0)
+        return [grounded_num, self.game_speed, distance , cactus_exist]
         
     def add_cactus(self):
         # print(f"Elapsed: {self.elapsed_game_time}\nNext: {self.next_spawn_time}\n")
@@ -44,6 +49,7 @@ class Environment:
             print(f"Spawn Time Interval: {self.spawn_time_interval}")
             self.next_spawn_time += self.spawn_time_interval;
             print(f"Next Spawn Time: {self.next_spawn_time}")
+            print(f"Dino isGrounded: {self.dino.grounded}")
 
     def is_collision(self):
         if pygame.sprite.groupcollide(self.dino_group, self.cactus_group, False, False):

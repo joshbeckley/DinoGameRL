@@ -23,13 +23,16 @@ class Dino(pygame.sprite.Sprite):
 
             return distance
 
+    def jump(self):
+        if self.grounded == True:
+            self.grounded = False
+            self.velocity = -VELOCITY
+
     def update(self, dt):
-        keys = pygame.key.get_pressed()
+        # keys = pygame.key.get_pressed()
         
-        if self.grounded:
-            if keys[pygame.K_SPACE]:
-                self.grounded = False
-                self.velocity = -VELOCITY
+        # if self.grounded:
+        #     if keys[pygame.K_SPACE]:
 
         self.rect.y += self.velocity * dt
         if self.velocity > 0:   
