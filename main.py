@@ -8,7 +8,7 @@ from datetime import datetime
 device = torch.device("cpu")
 if torch.cuda.is_available():
     device = torch.device("cuda")
-
+#https://medium.com/@mathparracho/training-an-agent-to-play-flappy-bird-dqn-modelling-reinforcement-learning-2cb16a9fa184
 env = Game()
 
 def optimize(mini_batch, policy_dqn, target_dqn):
@@ -45,7 +45,7 @@ def optimize(mini_batch, policy_dqn, target_dqn):
         optimizer.step() #propagate it through the model
 
 num_actions = 2 
-num_states = 4
+num_states = 5
 
 rewards_per_episode = []
 epsilon = 1
@@ -73,7 +73,7 @@ for episode in range(1000):
 
     state, _ = env.reset()  # initialize environment. reset returns (state,info).
     state = torch.tensor(state, dtype=torch.float, device=device)
-    
+    print(f"\n==========================\nIteration: {episode}:\nEpisode Reward: {best_reward}")
     #loop train in the episode
     stop_on_reward = 999
     terminated = False      #if the env has some goal (not the case of flappybird)

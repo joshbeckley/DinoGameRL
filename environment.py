@@ -1,8 +1,9 @@
 import pygame
-from constants import FLOOR_Y, CACTUS_FREQUENCY_SECS, BLACK, WHITE, GAME_SPEED_INCREASE
+from constants import FLOOR_Y, CACTUS_FREQUENCY_SECS, BLACK, WHITE, GAME_SPEED_INCREASE, GAME_SPEED
 import random
 from cactus import Cactus
 from ground import Ground
+from visualizer import NeuralNetworkVisualizer
 
 class Environment:
 
@@ -13,7 +14,7 @@ class Environment:
         self.score = 0
 
         self.font = pygame.font.Font('freesansbold.ttf', 10)
-
+        self.visualizer = NeuralNetworkVisualizer()
         self.dino_group = pygame.sprite.Group()
         self.dino_group.add(self.dino)
 
@@ -30,35 +31,54 @@ class Environment:
         self.spawn_time_interval_decrease = 0.03
         self.next_spawn_time = 0
 
+        self.cactus_passed = {"count": 0}
+
+    # def reset(self):
+    #     self.dino.grounded = True
+    #     self.game_speed = GAME_SPEED
+    #     self.score = 0
+    #     self.dino_group = pygame.sprite.Group()
+    #     self.dino_group.add(self.dino)
+
+    #     self.cactus_group = pygame.sprite.Group()
+
+    #     self.ground = Ground(0, FLOOR_Y, "assets/ground.png")
+    #     # TODO: could move in draw
+    #     self.ground_group = pygame.sprite.Group()
+    #     self.ground_group.add(self.ground)
+
+    #     # self.last_cactus = pygame.time.get_ticks() - CACTUS_FREQUENCY
+    #     self.elapsed_game_time = 0
+    #     self.spawn_time_interval = CACTUS_FREQUENCY_SECS
+    #     self.spawn_time_interval_decrease = 0.03
+    #     self.next_spawn_time = 0
+    
     def get_state(self):
         grounded_num = int(self.dino.grounded)
         distance = 0 if self.dino.distance_to_cactus(self.cactus_group) is None else self.dino.distance_to_cactus(self.cactus_group)
         cactus_exist = int(len(self.cactus_group) > 0)
-        return [grounded_num, self.game_speed, distance , cactus_exist]
+        return [grounded_num, self.game_speed - GAME_SPEED , distance , FLOOR_Y - self.dino.rect.midbottom[1], self.cactus_passed["count"]]
         
     def add_cactus(self):
         # print(f"Elapsed: {self.elapsed_game_time}\nNext: {self.next_spawn_time}\n")
         if self.elapsed_game_time > self.next_spawn_time:
             random_x = random.randint(30,200)
-            print(f"Proposed: {self.screen.get_width() + 2 + random_x}")
             cactus = Cactus(self.screen.get_width() + 2 + random_x, FLOOR_Y, "assets/cactus.png")
-            print(f"Actual: {cactus.rect.midbottom}")
             self.cactus_group.add(cactus)
 
             self.spawn_time_interval -= self.spawn_time_interval_decrease;
-            print(f"Spawn Time Interval: {self.spawn_time_interval}")
             self.next_spawn_time += self.spawn_time_interval;
-            print(f"Next Spawn Time: {self.next_spawn_time}")
-            print(f"Dino isGrounded: {self.dino.grounded}")
 
     def is_collision(self):
         if pygame.sprite.groupcollide(self.dino_group, self.cactus_group, False, False):
             return True
 
-    def draw(self):
+        return False
+
+    def draw(self, action):
         self.screen.fill("white")
 
-        self.draw_info()
+        self.visualizer.draw(self.screen,self.get_state(), action)
 
         self.dino_group.draw(self.screen)
         self.cactus_group.draw(self.screen)
@@ -68,7 +88,7 @@ class Environment:
 
     def update(self, dt):
         self.dino_group.update(dt)
-        self.cactus_group.update(self.game_speed, dt)
+        self.cactus_group.update(self.game_speed, dt, self.cactus_passed)
         self.game_speed += GAME_SPEED_INCREASE * dt
 
         self.elapsed_game_time += 1 * dt

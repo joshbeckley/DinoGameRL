@@ -9,8 +9,8 @@ class Cactus(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midbottom = [x, y]
 
-    def update(self, game_speed, dt):
+    def update(self, game_speed, dt, cactus_passed):
         self.rect.x -= game_speed * dt
         if self.rect.right < 0:
+            cactus_passed["count"] +=1
             self.kill()
-        pass
