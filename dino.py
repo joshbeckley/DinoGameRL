@@ -13,8 +13,6 @@ class Dino(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midbottom = [DINO_X, starting_y]
 
-        self.jump_count = 0
-    
     def distance_to_cactus(self, cactus_group):
         if cactus_group:
             cactus = cactus_group.sprites()[0]
@@ -27,7 +25,6 @@ class Dino(pygame.sprite.Sprite):
 
     def jump(self):
         if self.grounded == True:
-            self.jump_count += 1
             self.grounded = False
             self.velocity = -VELOCITY
 

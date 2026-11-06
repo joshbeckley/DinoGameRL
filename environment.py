@@ -56,7 +56,6 @@ class Environment:
     def get_state(self):
         grounded_num = int(self.dino.grounded)
         distance = 0 if self.dino.distance_to_cactus(self.cactus_group) is None else self.dino.distance_to_cactus(self.cactus_group)
-        cactus_exist = int(len(self.cactus_group) > 0)
         return [grounded_num, self.game_speed - GAME_SPEED , distance , FLOOR_Y - self.dino.rect.midbottom[1], self.cactus_passed["count"]]
         
     def add_cactus(self):
@@ -75,11 +74,11 @@ class Environment:
 
         return False
 
-    def draw(self, action):
+    def draw(self, action, reward):
         self.screen.fill("white")
 
         self.visualizer.draw(self.screen,self.get_state(), action)
-
+        self.draw_info(reward)
         self.dino_group.draw(self.screen)
         self.cactus_group.draw(self.screen)
         self.ground_group.draw(self.screen)
@@ -94,34 +93,34 @@ class Environment:
         self.elapsed_game_time += 1 * dt
         self.score = self.elapsed_game_time * 10
 
-    def draw_info(self):
-        speed = self.font.render("Speed:".ljust(30) + f"{self.game_speed}", True, BLACK, WHITE)
-        speedRect = speed.get_rect()
-        speedRect.topleft = (10, 10)
-        self.screen.blit(speed, speedRect)
+    def draw_info(self, reward):
+        reward = self.font.render("reward:".ljust(30) + f"{reward}", True, BLACK, WHITE)
+        rewardRect = reward.get_rect()
+        rewardRect.topleft = (10, 10)
+        self.screen.blit(reward, rewardRect)
 
-        spawn = self.font.render(f"Spawn Interval:".ljust(24) + f"{self.spawn_time_interval}", True, BLACK, WHITE)
-        spawnRect = spawn.get_rect()
-        spawnRect.topleft = (10, 20)
-        self.screen.blit(spawn, spawnRect)
+        # spawn = self.font.render(f"Spawn Interval:".ljust(24) + f"{self.spawn_time_interval}", True, BLACK, WHITE)
+        # spawnRect = spawn.get_rect()
+        # spawnRect.topleft = (10, 20)
+        # self.screen.blit(spawn, spawnRect)
 
-        next = self.font.render(f"Next Spawn:".ljust(26) + f"{self.next_spawn_time}", True, BLACK, WHITE)
-        nextRect = next.get_rect()
-        nextRect.topleft = (10, 30)
-        self.screen.blit(next, nextRect)
+        # next = self.font.render(f"Next Spawn:".ljust(26) + f"{self.next_spawn_time}", True, BLACK, WHITE)
+        # nextRect = next.get_rect()
+        # nextRect.topleft = (10, 30)
+        # self.screen.blit(next, nextRect)
 
-        elapsed = self.font.render(f"Elapsed Time:".ljust(25) + f"{self.elapsed_game_time}", True, BLACK, WHITE)
-        elapsedRect = elapsed.get_rect()
-        elapsedRect.topleft = (10, 40)
-        self.screen.blit(elapsed, elapsedRect)
+        # elapsed = self.font.render(f"Elapsed Time:".ljust(25) + f"{self.elapsed_game_time}", True, BLACK, WHITE)
+        # elapsedRect = elapsed.get_rect()
+        # elapsedRect.topleft = (10, 40)
+        # self.screen.blit(elapsed, elapsedRect)
 
-        score = self.font.render(f"Score:".ljust(31) + f"{self.score}", True, BLACK, WHITE)
-        scoreRect = score.get_rect()
-        scoreRect.topleft = (10, 50)
-        self.screen.blit(score, scoreRect)
+        # score = self.font.render(f"Score:".ljust(31) + f"{self.score}", True, BLACK, WHITE)
+        # scoreRect = score.get_rect()
+        # scoreRect.topleft = (10, 50)
+        # self.screen.blit(score, scoreRect)
 
-        distance = self.font.render(f"Distance:".ljust(29) + f"{self.dino.distance_to_cactus(self.cactus_group)}", True, BLACK, WHITE)
-        distanceRect = distance.get_rect()
-        distanceRect.topleft = (10, 60)
-        self.screen.blit(distance, distanceRect)
+        # distance = self.font.render(f"Distance:".ljust(29) + f"{self.dino.distance_to_cactus(self.cactus_group)}", True, BLACK, WHITE)
+        # distanceRect = distance.get_rect()
+        # distanceRect.topleft = (10, 60)
+        # self.screen.blit(distance, distanceRect)
         

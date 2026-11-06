@@ -17,6 +17,7 @@ class Game:
         self.render_mode = render_mode
         self.clock.tick(FPS)
 
+        self.total_jumps = 0
         self.reset()
 
     def reset(self):
@@ -31,8 +32,7 @@ class Game:
         return random.choice([0,1])
 
 
-    def step(self,action):
-
+    def step(self,action, reward):
         pygame.event.pump()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:  
@@ -44,7 +44,7 @@ class Game:
 
         self.environment.add_cactus()
         self.environment.update(self.dt)    
-        self.environment.draw(action)
+        self.environment.draw(action, reward)
 
         
 
@@ -54,15 +54,22 @@ class Game:
         if terminated:
             reward = -100.0
         else:
+
+            distance = self.environment.dino.distance_to_cactus(self.environment.cactus_group)
             # reward = 0.1 * 1/self.dino.jump_count
             if self.environment.dino.grounded:
-                reward = 0.2
+                reward = 0.3
             else:
                 reward =0.01
 
+            if action == 1:
+                if distance is None or distance > 300:
+                    print("penalty")
+                    reward += -10.0 
+
         if self.render_mode:
             self.environment.screen.fill((255, 255, 255)) # Clear screen
-            self.environment.draw(action)
+            self.environment.draw(action, reward)
             pygame.display.flip()
             self.dt = self.clock.tick(self.fps) / 1000.0
         

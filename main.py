@@ -49,10 +49,12 @@ num_states = 5
 
 rewards_per_episode = []
 epsilon = 1
-epsilon_decay = 0.99995
+# epsilon_decay = 0.99995
+epsilon_decay = 0.9995
 epsilon_min = 0.00001
 mini_batch_size = 32
-network_sync_rate = 10
+# network_sync_rate = 10
+network_sync_rate = 1000
 epsilon_history = []
 memory = ReplayMemory(maxlen = 100000)
 
@@ -93,7 +95,7 @@ for episode in range(1000):
                 action = policy_dqn(state_pytorch).squeeze().argmax() # action.shape -> [1, 2], action.squeeze(dim=0).shape -> [2], argmax outputs the position of the max(a,b)
 
         #execute action letsgoo
-        new_state,reward,terminated,truncated,info = env.step(action.item()) #this env.step executes the action on the env
+        new_state,reward,terminated,truncated,info = env.step(action.item(),episode_reward) #this env.step executes the action on the env
         episode_reward += reward
 
         new_state = torch.tensor(new_state, dtype=torch.float, device=device)
