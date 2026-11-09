@@ -1,5 +1,5 @@
 import pygame
-from constants import FLOOR_Y, CACTUS_FREQUENCY_SECS, BLACK, WHITE, GAME_SPEED_INCREASE, GAME_SPEED
+from constants import FLOOR_Y, WINDOW_WIDTH, CACTUS_FREQUENCY_SECS, BLACK, WHITE, GAME_SPEED_INCREASE, GAME_SPEED
 import random
 from cactus import Cactus
 from ground import Ground
@@ -62,7 +62,8 @@ class Environment:
         # print(f"Elapsed: {self.elapsed_game_time}\nNext: {self.next_spawn_time}\n")
         if self.elapsed_game_time > self.next_spawn_time:
             random_x = random.randint(30,200)
-            cactus = Cactus(self.screen.get_width() + 2 + random_x, FLOOR_Y, "assets/cactus.png")
+            screen_width = WINDOW_WIDTH if self.screen is None else self.screen.get_width()
+            cactus = Cactus(screen_width + 2 + random_x, FLOOR_Y, "assets/cactus.png")
             self.cactus_group.add(cactus)
 
             self.spawn_time_interval -= self.spawn_time_interval_decrease;
@@ -82,8 +83,6 @@ class Environment:
         self.dino_group.draw(self.screen)
         self.cactus_group.draw(self.screen)
         self.ground_group.draw(self.screen)
-
-        pygame.display.update()
 
     def update(self, dt):
         self.dino_group.update(dt)

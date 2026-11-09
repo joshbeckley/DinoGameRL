@@ -9,7 +9,7 @@ device = torch.device("cpu")
 if torch.cuda.is_available():
     device = torch.device("cuda")
 #https://medium.com/@mathparracho/training-an-agent-to-play-flappy-bird-dqn-modelling-reinforcement-learning-2cb16a9fa184
-env = Game()
+env = Game(False)
 
 def optimize(mini_batch, policy_dqn, target_dqn):
 

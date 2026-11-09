@@ -6,16 +6,20 @@ import random
 
 class Game:
     def __init__(self, render_mode = True):
-        pygame.init()
-        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        self.render_mode = render_mode
+        if self.render_mode:
+            pygame.init()
+            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        else:
+            pygame.font.init()
+            self.screen = None
         self.clock = pygame.time.Clock()
 
         self.dino = Dino(FLOOR_Y, "assets/dino.png")
         self.environment = Environment(self.screen, self.dino, GAME_SPEED)
-        print(self.environment.get_state())
         self.fps = 60
-        self.render_mode = render_mode
-        self.clock.tick(FPS)
+        if self.render_mode:
+            self.clock.tick(FPS)
 
         self.total_jumps = 0
         self.reset()
@@ -33,18 +37,18 @@ class Game:
 
 
     def step(self,action, reward):
-        pygame.event.pump()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:  
-                pygame.quit()
-                exit()
+        if self.render_mode:
+            pygame.event.pump()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    raise SystemExit
 
         if action == 1:
             self.environment.dino.jump()
 
         self.environment.add_cactus()
         self.environment.update(self.dt)    
-        self.environment.draw(action, reward)
 
         
 
@@ -64,11 +68,8 @@ class Game:
 
             if action == 1:
                 if distance is None or distance > 300:
-                    print("penalty")
                     reward += -10.0 
-
         if self.render_mode:
-            self.environment.screen.fill((255, 255, 255)) # Clear screen
             self.environment.draw(action, reward)
             pygame.display.flip()
             self.dt = self.clock.tick(self.fps) / 1000.0
