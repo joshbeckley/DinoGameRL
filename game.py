@@ -44,31 +44,28 @@ class Game:
                     pygame.quit()
                     raise SystemExit
 
+        distance = self.environment.dino.distance_to_cactus(
+            self.environment.cactus_group
+        )
+        was_grounded = self.environment.dino.grounded
+        jump_penalty = 0.0
         if action == 1:
+            if was_grounded and (distance is None or distance > 350):
+                jump_penalty = -0.05
             self.environment.dino.jump()
 
+        passed_before = self.environment.cactus_passed["count"]
         self.environment.add_cactus()
         self.environment.update(self.dt)    
-
-        
+        passed = self.environment.cactus_passed["count"] - passed_before
 
         terminated = self.environment.is_collision()
         truncated = False
 
         if terminated:
-            reward = -100.0
+            reward = -1.0
         else:
-
-            distance = self.environment.dino.distance_to_cactus(self.environment.cactus_group)
-            # reward = 0.1 * 1/self.dino.jump_count
-            if self.environment.dino.grounded:
-                reward = 0.3
-            else:
-                reward =0.01
-
-            if action == 1:
-                if distance is None or distance > 300:
-                    reward += -10.0 
+            reward = 0.01 + passed + jump_penalty
         if self.render_mode:
             self.environment.draw(action, reward)
             pygame.display.flip()

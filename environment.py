@@ -1,5 +1,14 @@
 import pygame
-from constants import FLOOR_Y, WINDOW_WIDTH, CACTUS_FREQUENCY_SECS, BLACK, WHITE, GAME_SPEED_INCREASE, GAME_SPEED
+from constants import (
+    FLOOR_Y,
+    WINDOW_WIDTH,
+    CACTUS_FREQUENCY_SECS,
+    BLACK,
+    WHITE,
+    GAME_SPEED_INCREASE,
+    GAME_SPEED,
+    VELOCITY,
+)
 import random
 from cactus import Cactus
 from ground import Ground
@@ -55,8 +64,17 @@ class Environment:
     
     def get_state(self):
         grounded_num = int(self.dino.grounded)
-        distance = 0 if self.dino.distance_to_cactus(self.cactus_group) is None else self.dino.distance_to_cactus(self.cactus_group)
-        return [grounded_num, self.game_speed - GAME_SPEED , distance , FLOOR_Y - self.dino.rect.midbottom[1], self.cactus_passed["count"]]
+        distance = self.dino.distance_to_cactus(self.cactus_group)
+        if distance is None:
+            distance = WINDOW_WIDTH
+
+        return [
+            grounded_num,
+            min((self.game_speed - GAME_SPEED) / GAME_SPEED, 1.0),
+            min(max(distance, 0), WINDOW_WIDTH) / WINDOW_WIDTH,
+            (FLOOR_Y - self.dino.rect.midbottom[1]) / FLOOR_Y,
+            max(-1.0, min(self.dino.velocity / VELOCITY, 1.0)),
+        ]
         
     def add_cactus(self):
         # print(f"Elapsed: {self.elapsed_game_time}\nNext: {self.next_spawn_time}\n")
@@ -86,7 +104,9 @@ class Environment:
 
     def update(self, dt):
         self.dino_group.update(dt)
-        self.cactus_group.update(self.game_speed, dt, self.cactus_passed)
+        self.cactus_group.update(
+            self.game_speed, dt, self.cactus_passed, self.dino.rect.left
+        )
         self.game_speed += GAME_SPEED_INCREASE * dt
 
         self.elapsed_game_time += 1 * dt

@@ -29,13 +29,13 @@ def optimize(mini_batch, policy_dqn, target_dqn):
                 best_actions_from_policy = policy_dqn(new_states).argmax(dim=1)
 
                 target_q = rewards + (1-terminations) * discount_factor_g * \
-                                target_dqn(new_states).gather(dim=1, index=best_actions_from_policy.unsqueeze(dim=1)).squeeze()
+                                target_dqn(new_states).gather(dim=1, index=best_actions_from_policy.unsqueeze(dim=1)).squeeze(dim=1)
             else:
                 #calculate target Q values (expected returns)
                 target_q = rewards + (1-terminations) * discount_factor_g * target_dqn(new_states).max(dim=1)[0]
 
         #calcuate Q values from current policy
-        current_q = policy_dqn(states).gather(dim=1, index=actions.unsqueeze(dim=1)).squeeze()
+        current_q = policy_dqn(states).gather(dim=1, index=actions.unsqueeze(dim=1)).squeeze(dim=1)
 
         loss = loss_fn(current_q, target_q)
 
@@ -48,10 +48,10 @@ num_actions = 2
 num_states = 5
 
 rewards_per_episode = []
-epsilon = 1
+epsilon = 0.2
 # epsilon_decay = 0.99995
-epsilon_decay = 0.9995
-epsilon_min = 0.00001
+epsilon_decay = 0.995
+epsilon_min = 0.02
 mini_batch_size = 32
 # network_sync_rate = 10
 network_sync_rate = 1000
@@ -64,7 +64,7 @@ target_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=Tru
 target_dqn.load_state_dict(policy_dqn.state_dict()) #same as the target network
 
 optimizer = torch.optim.Adam(policy_dqn.parameters(), lr=0.0001)
-loss_fn = nn.MSELoss()
+loss_fn = nn.SmoothL1Loss()
 
 # track number of steps taken. used for syncing policy => target network.
 step_count=0
@@ -84,7 +84,7 @@ for episode in range(1000):
     while(not terminated and episode_reward < stop_on_reward): #stop if bird is dead or achieved 999 scores on the game
 
         ## epsilon-greedy algorithm !!!!!!!!!!
-        if random.random() < 0.1: ##floating number [0,1] < epsilon
+        if random.random() < epsilon:
             # select random action
             action = env.get_random_action()
             action = torch.tensor(action, dtype=torch.int64, device=device)
@@ -104,25 +104,31 @@ for episode in range(1000):
         #adding into the replay buffer
         memory.append((state, action, new_state, reward, terminated))
         step_count+=1
+        if len(memory) >= mini_batch_size and step_count % 4 == 0:
+            mini_batch = memory.sample(mini_batch_size)
+            optimize(mini_batch, policy_dqn, target_dqn)
+
+            if step_count >= network_sync_rate:
+                target_dqn.load_state_dict(policy_dqn.state_dict())
+                step_count = 0
 
         state = new_state
     rewards_per_episode.append(episode_reward)
+    average_reward = sum(rewards_per_episode[-100:]) / min(
+        len(rewards_per_episode), 100
+    )
+    print(
+        f"Episode {episode}: reward={episode_reward:.2f}, "
+        f"avg100={average_reward:.2f}, "
+        f"cacti_passed={env.environment.cactus_passed['count']}, "
+        f"epsilon={epsilon:.3f}"
+    )
     # check if it is the best to save the model
     if episode_reward > best_reward:
-            print(f"{datetime.now().strftime('%m-%d %H:%M:%S')}: New best reward {episode_reward:0.1f} ({(episode_reward-best_reward)/best_reward*100:+.1f}%) at episode {episode}, saving model...")
+            print(f"{datetime.now().strftime('%m-%d %H:%M:%S')}: New best reward {episode_reward:0.1f} at episode {episode}, saving model...")
             torch.save(policy_dqn.state_dict(), "best_model.pt")
             best_reward = episode_reward
 
-    # also an importat part: the model optimization using the memory buffer, epsilon decay and double dqn !!!!!!!!!!
-    if len(memory) > mini_batch_size:
-        mini_batch = memory.sample(mini_batch_size)
-        optimize(mini_batch, policy_dqn, target_dqn) #optimization step
-
-        # espilon decay... going into the exploitation and avoiding exploration
-        epsilon = max(epsilon * epsilon_decay, epsilon_min)
-        epsilon_history.append(epsilon)
-
-        # the double dqn idea: copy policy network to target network after a certain number of steps
-        if step_count > network_sync_rate:
-            target_dqn.load_state_dict(policy_dqn.state_dict())
-            step_count=0
+    # also an importat part: the optimization using the memory buffer, epsilon decay and double dqn !!!!!!!!!!
+    epsilon = max(epsilon * epsilon_decay, epsilon_min)
+    epsilon_history.append(epsilon)

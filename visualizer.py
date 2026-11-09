@@ -44,7 +44,7 @@ class NeuralNetworkVisualizer:
             f"2. speed: {state_vals[1]:.1f}", 
             f"3. dist: {state_vals[2]}", 
             f"4. y_above ground: {state_vals[3]}", 
-            f"5. c_passed: {state_vals[4]}"
+            f"5. vertical speed: {state_vals[4]:.2f}"
         ]
 
         start_y = self.y + 60

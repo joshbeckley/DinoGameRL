@@ -15,14 +15,16 @@ class Dino(pygame.sprite.Sprite):
         self.rect.midbottom = [DINO_X, starting_y]
 
     def distance_to_cactus(self, cactus_group):
-        if cactus_group:
-            cactus = cactus_group.sprites()[0]
-            distance = cactus.rect.left - self.rect.right
-            if distance < 0 and len(cactus_group.sprites()) == 2:
-                cactus = cactus_group.sprites()[1]
-                distance = cactus.rect.left - self.rect.right
+        upcoming = [
+            cactus
+            for cactus in cactus_group
+            if cactus.rect.right >= self.rect.left
+        ]
+        if not upcoming:
+            return None
 
-            return distance
+        cactus = min(upcoming, key=lambda item: item.rect.left)
+        return cactus.rect.left - self.rect.right
 
     def jump(self):
         if self.grounded == True:
