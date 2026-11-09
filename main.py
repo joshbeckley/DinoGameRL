@@ -3,6 +3,8 @@ from network import DQN, ReplayMemory
 import torch
 from torch import nn
 import random
+import sys
+from pathlib import Path
 from game import Game
 from datetime import datetime
 device = torch.device("cpu")
@@ -10,6 +12,9 @@ if torch.cuda.is_available():
     device = torch.device("cuda")
 #https://medium.com/@mathparracho/training-an-agent-to-play-flappy-bird-dqn-modelling-reinforcement-learning-2cb16a9fa184
 env = Game(False)
+episodes = 1000
+if "--episodes" in sys.argv:
+    episodes = int(sys.argv[sys.argv.index("--episodes") + 1])
 
 def optimize(mini_batch, policy_dqn, target_dqn):
 
@@ -46,6 +51,9 @@ def optimize(mini_batch, policy_dqn, target_dqn):
 
 num_actions = 2 
 num_states = 5
+model_directory = Path(__file__).resolve().parent
+best_model_path = model_directory / "best_model.pt"
+continued_model_path = model_directory / "best_model_continued.pt"
 
 rewards_per_episode = []
 epsilon = 0.2
@@ -61,6 +69,22 @@ memory = ReplayMemory(maxlen = 100000)
 #instantiating networks
 policy_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=True).to(device)
 target_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=True).to(device)
+continue_training = "--continue" in sys.argv
+if continue_training:
+    checkpoint_path = (
+        continued_model_path if continued_model_path.exists() else best_model_path
+    )
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
+    weights = checkpoint.get("policy_state_dict", checkpoint)
+    policy_dqn.load_state_dict(weights)
+    epsilon = epsilon_min
+    print(f"Loaded model weights from {checkpoint_path}")
+    print(f"Starting another {episodes} episodes; replay memory and optimizer start fresh.")
+    output_model_path = continued_model_path
+    start_episode = 1000
+else:
+    output_model_path = best_model_path
+    start_episode = 0
 target_dqn.load_state_dict(policy_dqn.state_dict()) #same as the target network
 
 optimizer = torch.optim.Adam(policy_dqn.parameters(), lr=0.0001)
@@ -71,7 +95,7 @@ step_count=0
 
 best_reward = -float("inf") ## see if it is right
 
-for episode in range(1000):
+for episode in range(start_episode, start_episode + episodes):
 
     state, _ = env.reset()  # initialize environment. reset returns (state,info).
     state = torch.tensor(state, dtype=torch.float, device=device)
@@ -126,7 +150,7 @@ for episode in range(1000):
     # check if it is the best to save the model
     if episode_reward > best_reward:
             print(f"{datetime.now().strftime('%m-%d %H:%M:%S')}: New best reward {episode_reward:0.1f} at episode {episode}, saving model...")
-            torch.save(policy_dqn.state_dict(), "best_model.pt")
+            torch.save(policy_dqn.state_dict(), output_model_path)
             best_reward = episode_reward
 
     # also an importat part: the optimization using the memory buffer, epsilon decay and double dqn !!!!!!!!!!
