@@ -7,11 +7,18 @@ import sys
 from pathlib import Path
 from game import Game
 from datetime import datetime
+from training_metrics import TrainingMetrics
 device = torch.device("cpu")
 if torch.cuda.is_available():
     device = torch.device("cuda")
 #https://medium.com/@mathparracho/training-an-agent-to-play-flappy-bird-dqn-modelling-reinforcement-learning-2cb16a9fa184
-env = Game(False)
+play_mode = False
+play_model = ""
+if "--play" in sys.argv:
+    play_mode = True
+    play_model = sys.argv[sys.argv.index("--play") + 1]
+    
+env = Game(play_mode)
 episodes = 1000
 if "--episodes" in sys.argv:
     episodes = int(sys.argv[sys.argv.index("--episodes") + 1])
@@ -54,6 +61,11 @@ num_states = 5
 model_directory = Path(__file__).resolve().parent
 best_model_path = model_directory / "best_model.pt"
 continued_model_path = model_directory / "best_model_continued.pt"
+play_model_path = model_directory / play_model
+metrics = TrainingMetrics(
+    model_directory / "training_metrics.csv",
+    model_directory / "training_metrics.svg",
+)
 
 rewards_per_episode = []
 epsilon = 0.2
@@ -69,6 +81,27 @@ memory = ReplayMemory(maxlen = 100000)
 #instantiating networks
 policy_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=True).to(device)
 target_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=True).to(device)
+if play_mode:
+    checkpoint = torch.load(play_model_path, map_location=device, weights_only=True)
+    weights = checkpoint.get("policy_state_dict", checkpoint)
+    policy_dqn.load_state_dict(weights)
+    policy_dqn.eval()
+    print(f"Playing model from {play_model_path}")
+
+    while True:
+        state, _ = env.reset()
+        episode_reward = 0.0
+        terminated = False
+
+        while not terminated:
+            state_tensor = torch.tensor(state, dtype=torch.float32, device=device)
+            with torch.no_grad():
+                action = policy_dqn(state_tensor.unsqueeze(dim=0)).argmax(dim=1).item()
+            state, reward, terminated, _, _ = env.step(action, episode_reward)
+            episode_reward += reward
+
+        print(f"Episode finished: reward={episode_reward:.2f}")
+
 continue_training = "--continue" in sys.argv
 if continue_training:
     checkpoint_path = (
@@ -104,6 +137,8 @@ for episode in range(start_episode, start_episode + episodes):
     stop_on_reward = 999
     terminated = False      #if the env has some goal (not the case of flappybird)
     episode_reward = 0.0    #used to accumulate rewards per episode
+    episode_steps = 0
+    jump_actions = 0
 
     while(not terminated and episode_reward < stop_on_reward): #stop if bird is dead or achieved 999 scores on the game
 
@@ -121,6 +156,8 @@ for episode in range(start_episode, start_episode + episodes):
         #execute action letsgoo
         new_state,reward,terminated,truncated,info = env.step(action.item(),episode_reward) #this env.step executes the action on the env
         episode_reward += reward
+        episode_steps += 1
+        jump_actions += int(action.item() == 1)
 
         new_state = torch.tensor(new_state, dtype=torch.float, device=device)
         reward = torch.tensor(reward, dtype=torch.float, device=device)
@@ -147,6 +184,17 @@ for episode in range(start_episode, start_episode + episodes):
         f"cacti_passed={env.environment.cactus_passed['count']}, "
         f"epsilon={epsilon:.3f}"
     )
+    metrics.record_episode(
+        {
+            "episode": episode,
+            "reward": episode_reward,
+            "rolling_mean_100": average_reward,
+            "steps": episode_steps,
+            "cacti_passed": env.environment.cactus_passed["count"],
+            "jumps": jump_actions,
+            "epsilon": epsilon,
+        }
+    )
     # check if it is the best to save the model
     if episode_reward > best_reward:
             print(f"{datetime.now().strftime('%m-%d %H:%M:%S')}: New best reward {episode_reward:0.1f} at episode {episode}, saving model...")
@@ -156,3 +204,6 @@ for episode in range(start_episode, start_episode + episodes):
     # also an importat part: the optimization using the memory buffer, epsilon decay and double dqn !!!!!!!!!!
     epsilon = max(epsilon * epsilon_decay, epsilon_min)
     epsilon_history.append(epsilon)
+
+metrics.plot()
+print(f"Training metrics saved to {metrics.csv_path} and {metrics.plot_path}")
