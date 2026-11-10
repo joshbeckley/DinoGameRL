@@ -1,3 +1,5 @@
+# Code from Matheus Ramos Parracho
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -68,3 +70,36 @@ class ReplayMemory():
 
     def __len__(self):
         return len(self.memory)
+
+def optimize(mini_batch, policy_dqn, target_dqn, optimizer, loss_fn, device):
+
+        #get elements from the env in the mini_batch
+        states, actions, new_states, rewards, terminations = zip(*mini_batch)
+
+        states = torch.stack(states)
+        actions = torch.stack(actions)
+        new_states = torch.stack(new_states)
+        rewards = torch.stack(rewards)
+        terminations = torch.tensor(terminations).float().to(device)
+
+        discount_factor_g = 0.99
+        with torch.no_grad():
+            enable_double_dqn = True #just to implement also without double_dqn
+            if enable_double_dqn == True:
+                best_actions_from_policy = policy_dqn(new_states).argmax(dim=1)
+
+                target_q = rewards + (1-terminations) * discount_factor_g * \
+                                target_dqn(new_states).gather(dim=1, index=best_actions_from_policy.unsqueeze(dim=1)).squeeze(dim=1)
+            else:
+                #calculate target Q values (expected returns)
+                target_q = rewards + (1-terminations) * discount_factor_g * target_dqn(new_states).max(dim=1)[0]
+
+        #calcuate Q values from current policy
+        current_q = policy_dqn(states).gather(dim=1, index=actions.unsqueeze(dim=1)).squeeze(dim=1)
+
+        loss = loss_fn(current_q, target_q)
+
+        # backprop step
+        optimizer.zero_grad()  
+        loss.backward()             # compute gradients
+        optimizer.step() #propagate it through the model
