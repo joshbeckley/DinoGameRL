@@ -71,7 +71,7 @@ rewards_per_episode = []
 epsilon = 0.2
 # epsilon_decay = 0.99995
 epsilon_decay = 0.995
-epsilon_min = 0.02
+epsilon_min = 0.0001
 mini_batch_size = 32
 # network_sync_rate = 10
 network_sync_rate = 1000
@@ -128,6 +128,7 @@ step_count=0
 
 best_reward = -float("inf") ## see if it is right
 
+metrics.reset()
 for episode in range(start_episode, start_episode + episodes):
 
     state, _ = env.reset()  # initialize environment. reset returns (state,info).
@@ -205,5 +206,6 @@ for episode in range(start_episode, start_episode + episodes):
     epsilon = max(epsilon * epsilon_decay, epsilon_min)
     epsilon_history.append(epsilon)
 
-metrics.plot()
-print(f"Training metrics saved to {metrics.csv_path} and {metrics.plot_path}")
+print(f"Training metrics saved to {metrics.csv_path}")
+for plot_path in metrics.plot():
+    print(f"Training plot saved to {plot_path}")
