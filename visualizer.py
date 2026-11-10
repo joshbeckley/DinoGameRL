@@ -31,8 +31,8 @@ class NeuralNetworkVisualizer:
 
     def draw(self, screen, state_vals, active_action=None):
         """
-        Draws the neural network with live state values, firing animation pulses, 
-        and highlights the selected action (0 = Jump, 1 = Do Nothing).
+        Draws the neural network with live state values, firing animation pulses,
+        and highlights the selected action (0 = Do Nothing, 1 = Jump).
         """
         self.pulse_timer += 0.15
         pulse = (math.sin(self.pulse_timer) + 1) / 2  # Value between 0 and 1
@@ -112,7 +112,7 @@ class NeuralNetworkVisualizer:
             pygame.draw.circle(screen, self.NODE_STREAM, (int(x), int(y)), 6)
 
         # 4. Outputs (Highlight the chosen action with a glowing outer ring)
-        action_labels = ["Q(s, Jump)", "Q(s, Do Nothing)"]
+        action_labels = ["Q(s, Do Nothing)", "Q(s, Jump)"]
         for i, (x, y) in enumerate(out_coords):
             is_selected = (active_action == i)
             

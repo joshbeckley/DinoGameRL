@@ -113,10 +113,17 @@ class Environment:
         self.score = self.elapsed_game_time * 10
 
     def draw_info(self, reward):
-        reward = self.font.render("reward:".ljust(30) + f"{reward}", True, BLACK, WHITE)
-        rewardRect = reward.get_rect()
-        rewardRect.topleft = (10, 10)
-        self.screen.blit(reward, rewardRect)
+        reward_text = self.font.render(
+            "reward:".ljust(30) + f"{reward}", True, BLACK, WHITE
+        )
+        reward_rect = reward_text.get_rect(topleft=(10, 10))
+        self.screen.blit(reward_text, reward_rect)
+
+        cactus_text = self.font.render(
+            f"Cacti passed: {self.cactus_passed['count']}", True, BLACK, WHITE
+        )
+        cactus_rect = cactus_text.get_rect(topleft=(10, 22))
+        self.screen.blit(cactus_text, cactus_rect)
 
         # spawn = self.font.render(f"Spawn Interval:".ljust(24) + f"{self.spawn_time_interval}", True, BLACK, WHITE)
         # spawnRect = spawn.get_rect()
