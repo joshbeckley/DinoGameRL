@@ -1,5 +1,5 @@
 # Example file showing a circle moving on screen
-from network import DQN, ReplayMemory
+from network import DQN, ReplayMemory, optimize
 import torch
 from torch import nn
 import random
@@ -8,10 +8,13 @@ from pathlib import Path
 from game import Game
 from datetime import datetime
 from training_metrics import TrainingMetrics
+
+
 device = torch.device("cpu")
 if torch.cuda.is_available():
     device = torch.device("cuda")
-#https://medium.com/@mathparracho/training-an-agent-to-play-flappy-bird-dqn-modelling-reinforcement-learning-2cb16a9fa184
+
+# configuring the command line arguments
 play_mode = False
 play_model = ""
 if "--play" in sys.argv:
@@ -23,57 +26,33 @@ episodes = 1000
 if "--episodes" in sys.argv:
     episodes = int(sys.argv[sys.argv.index("--episodes") + 1])
 
-def optimize(mini_batch, policy_dqn, target_dqn):
-
-        #get elements from the env in the mini_batch
-        states, actions, new_states, rewards, terminations = zip(*mini_batch)
-
-        states = torch.stack(states)
-        actions = torch.stack(actions)
-        new_states = torch.stack(new_states)
-        rewards = torch.stack(rewards)
-        terminations = torch.tensor(terminations).float().to(device)
-
-        discount_factor_g = 0.99
-        with torch.no_grad():
-            enable_double_dqn = True #just to implement also without double_dqn
-            if enable_double_dqn == True:
-                best_actions_from_policy = policy_dqn(new_states).argmax(dim=1)
-
-                target_q = rewards + (1-terminations) * discount_factor_g * \
-                                target_dqn(new_states).gather(dim=1, index=best_actions_from_policy.unsqueeze(dim=1)).squeeze(dim=1)
-            else:
-                #calculate target Q values (expected returns)
-                target_q = rewards + (1-terminations) * discount_factor_g * target_dqn(new_states).max(dim=1)[0]
-
-        #calcuate Q values from current policy
-        current_q = policy_dqn(states).gather(dim=1, index=actions.unsqueeze(dim=1)).squeeze(dim=1)
-
-        loss = loss_fn(current_q, target_q)
-
-        # backprop step
-        optimizer.zero_grad()  
-        loss.backward()             # compute gradients
-        optimizer.step() #propagate it through the model
-
-num_actions = 2 
-num_states = 5
+# file paths
 model_directory = Path(__file__).resolve().parent
-best_model_path = model_directory / "best_model.pt"
-continued_model_path = model_directory / "best_model_continued.pt"
-play_model_path = model_directory / play_model
+models_directory = model_directory / "models"
+results_directory = model_directory / "results"
+models_directory.mkdir(parents=True, exist_ok=True)
+run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+play_model_path = Path(play_model)
+if not play_model_path.is_absolute():
+    if play_model_path.parts and play_model_path.parts[0] == "models":
+        play_model_path = model_directory / play_model_path
+    elif (model_directory / play_model_path).exists():
+        play_model_path = model_directory / play_model_path
+    else:
+        play_model_path = models_directory / play_model_path
 metrics = TrainingMetrics(
-    model_directory / "training_metrics.csv",
-    model_directory / "training_metrics.svg",
+    results_directory / "training_metrics.csv",
+    results_directory / "training_metrics.svg",
 )
 
+# instantiating network parameters and training loop hyperparameters
+num_actions = 2 
+num_states = 5
 rewards_per_episode = []
 epsilon = 0.2
-# epsilon_decay = 0.99995
 epsilon_decay = 0.995
 epsilon_min = 0.0001
 mini_batch_size = 32
-# network_sync_rate = 10
 network_sync_rate = 1000
 epsilon_history = []
 memory = ReplayMemory(maxlen = 100000)
@@ -81,7 +60,11 @@ memory = ReplayMemory(maxlen = 100000)
 #instantiating networks
 policy_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=True).to(device)
 target_dqn = DQN(num_states, num_actions, hidden_dim=256, enable_dueling_dqn=True).to(device)
+
+# play a model instead of training
 if play_mode:
+
+    # load the model weights
     checkpoint = torch.load(play_model_path, map_location=device, weights_only=True)
     weights = checkpoint.get("policy_state_dict", checkpoint)
     policy_dqn.load_state_dict(weights)
@@ -95,55 +78,57 @@ if play_mode:
 
         while not terminated:
             state_tensor = torch.tensor(state, dtype=torch.float32, device=device)
+            # no need to train - use no_grad
             with torch.no_grad():
                 action = policy_dqn(state_tensor.unsqueeze(dim=0)).argmax(dim=1).item()
             state, reward, terminated, _, _ = env.step(action, episode_reward)
             episode_reward += reward
 
+        # calculate reward for interest sake
         print(f"Episode finished: reward={episode_reward:.2f}")
 
+# load current best model to train more
 continue_training = "--continue" in sys.argv
 if continue_training:
-    checkpoint_path = (
-        continued_model_path if continued_model_path.exists() else best_model_path
-    )
+    saved_models = list(models_directory.glob("best_model*.pt"))
+    if not saved_models:
+        raise FileNotFoundError(f"No best model checkpoint found in {models_directory}")
+    checkpoint_path = max(saved_models, key=lambda path: path.stat().st_mtime)
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     weights = checkpoint.get("policy_state_dict", checkpoint)
     policy_dqn.load_state_dict(weights)
     epsilon = epsilon_min
     print(f"Loaded model weights from {checkpoint_path}")
     print(f"Starting another {episodes} episodes; replay memory and optimizer start fresh.")
-    output_model_path = continued_model_path
-    start_episode = 1000
+    output_model_path = models_directory / f"best_model_continued_{run_timestamp}.pt"
 else:
-    output_model_path = best_model_path
+    output_model_path = models_directory / f"best_model_{run_timestamp}.pt"
     start_episode = 0
 target_dqn.load_state_dict(policy_dqn.state_dict()) #same as the target network
 
 optimizer = torch.optim.Adam(policy_dqn.parameters(), lr=0.0001)
 loss_fn = nn.SmoothL1Loss()
 
-# track number of steps taken. used for syncing policy => target network.
 step_count=0
-
-best_reward = -float("inf") ## see if it is right
-
+best_reward = -float("inf")
 metrics.reset()
-for episode in range(start_episode, start_episode + episodes):
 
-    state, _ = env.reset()  # initialize environment. reset returns (state,info).
+# main episode training loop
+for episode in range(start_episode, start_episode + episodes):
+    state, _ = env.reset()
     state = torch.tensor(state, dtype=torch.float, device=device)
-    print(f"\n==========================\nIteration: {episode}:\nEpisode Reward: {best_reward}")
-    #loop train in the episode
-    stop_on_reward = 999
-    terminated = False      #if the env has some goal (not the case of flappybird)
-    episode_reward = 0.0    #used to accumulate rewards per episode
+    print(f"\n==========================\nEpisode: {episode}:\nEpisode Reward: {best_reward}")
+
+    # internal game/train loop per episode
+    stop_on_reward = 85
+    terminated = False
+    episode_reward = 0.0
     episode_steps = 0
     jump_actions = 0
 
-    while(not terminated and episode_reward < stop_on_reward): #stop if bird is dead or achieved 999 scores on the game
+    while(not terminated and episode_reward < stop_on_reward):
 
-        ## epsilon-greedy algorithm !!!!!!!!!!
+        # epsilon-greedy action selection
         if random.random() < epsilon:
             # select random action
             action = env.get_random_action()
@@ -151,11 +136,11 @@ for episode in range(start_episode, start_episode + episodes):
         else:
             # select best action
             with torch.no_grad():
-                state_pytorch = state.unsqueeze(dim=0) # state.shape -> [12], state.unsqueeze(dim=0).shape -> [1,12] because pytorch expects a batch dimension
-                action = policy_dqn(state_pytorch).squeeze().argmax() # action.shape -> [1, 2], action.squeeze(dim=0).shape -> [2], argmax outputs the position of the max(a,b)
+                state_pytorch = state.unsqueeze(dim=0)
+                action = policy_dqn(state_pytorch).squeeze().argmax()
 
-        #execute action letsgoo
-        new_state,reward,terminated,truncated,info = env.step(action.item(),episode_reward) #this env.step executes the action on the env
+        # execute the action and update metrics
+        new_state, reward, terminated, truncated, info = env.step(action.item(), episode_reward)
         episode_reward += reward
         episode_steps += 1
         jump_actions += int(action.item() == 1)
@@ -163,18 +148,23 @@ for episode in range(start_episode, start_episode + episodes):
         new_state = torch.tensor(new_state, dtype=torch.float, device=device)
         reward = torch.tensor(reward, dtype=torch.float, device=device)
 
-        #adding into the replay buffer
+        # adding step returns to memory 
         memory.append((state, action, new_state, reward, terminated))
         step_count+=1
+        
+        # learn from a sample batch from memroy every 4 enviroment step
         if len(memory) >= mini_batch_size and step_count % 4 == 0:
             mini_batch = memory.sample(mini_batch_size)
-            optimize(mini_batch, policy_dqn, target_dqn)
+            optimize(mini_batch, policy_dqn, target_dqn, optimizer, loss_fn, device)
 
+            # target network copied from policy when step > 1000
             if step_count >= network_sync_rate:
                 target_dqn.load_state_dict(policy_dqn.state_dict())
                 step_count = 0
 
         state = new_state
+
+    # store metrics 
     rewards_per_episode.append(episode_reward)
     average_reward = sum(rewards_per_episode[-100:]) / min(
         len(rewards_per_episode), 100
@@ -196,13 +186,14 @@ for episode in range(start_episode, start_episode + episodes):
             "epsilon": epsilon,
         }
     )
-    # check if it is the best to save the model
+
+    # check if found new best reward
     if episode_reward > best_reward:
             print(f"{datetime.now().strftime('%m-%d %H:%M:%S')}: New best reward {episode_reward:0.1f} at episode {episode}, saving model...")
             torch.save(policy_dqn.state_dict(), output_model_path)
             best_reward = episode_reward
 
-    # also an importat part: the optimization using the memory buffer, epsilon decay and double dqn !!!!!!!!!!
+    # reduce exploration rate
     epsilon = max(epsilon * epsilon_decay, epsilon_min)
     epsilon_history.append(epsilon)
 
