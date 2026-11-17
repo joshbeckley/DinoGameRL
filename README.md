@@ -123,13 +123,7 @@ This exploration graph can be see in the training graphs.
 
 ## What I learned
 
-The biggest thing I learned is that reward shaping matters way more than I expected. A tiny tweak to the reward function can completely change the behavior of the agent. The model isn’t just “learning a strategy”; it’s learning whatever pattern in the reward signal it can exploit, which is both fascinating and a little dangerous if you’re not careful.
-
 The biggest thing I learned by far was that no amount of training will make a poor reward function work. I spent half the time just tweaking what it was rewarded for. I tried penalising the number of jumps before it reached a cactus or penalised it for trying to jump while it was still in the air. After some time, I found a reward function that worked. 
-
-I also learned that training in these games is a lot less glamorous than the tutorials make it look. It’s not just “agent sees state, agent picks action, training works.” There are weird plateaus, random runs that look terrible, and the odd moment where you realize the model is doing something that technically makes sense but is very much not what you intended.
-
-That said, seeing the dino start to actually dodge obstacles after a while is pretty satisfying. It makes the whole thing feel less like a script and more like the model is learning something real.
 
 ## Acknowledgements
 
